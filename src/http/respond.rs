@@ -26,7 +26,7 @@ use crate::http::version::HttpVersion;
 
 /// Struct of parsed HTTP Respond
 #[derive(Debug)]
-struct HTTPRespond<'a> {
+pub struct HTTPRespond<'a> {
   // First line
   http_version: HttpVersion,
   status_code: StatusCode,

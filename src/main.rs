@@ -1,9 +1,12 @@
+use std::borrow::Borrow;
 use std::env;
 use std::error::Error;
 
 use tokio;
 use tokio::io::AsyncReadExt;
 use tokio::net::TcpListener;
+
+use crate::http::request::HTTPRequest;
 
 mod constants;
 mod http;
@@ -45,15 +48,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
                       .await
                       .expect("Failed to read data from socket");
 
-        if n == 0 {
-          break;
-        } else {
+        println!{"n={}",n};
+        if n > 0 {
           raw_request.extend(&buffer[..n]);
-          println!("---------------- Read {:4} bytes! ----------------", n);
-          println!("{}", unsafe { std::str::from_utf8_unchecked(&buffer) });
-          println!("---------------- End {:4} bytes! -----------------", n);
+        }
+
+        if n<buffer.len(){
+          break;
         }
       }
+
+      let request_as_string = String::from_utf8_lossy(
+        raw_request.borrow()).into_owned();
+      let http_request = HTTPRequest::from(request_as_string.as_str());
+      println!("{:?}", http_request.header)
 
 //      let request =
 //

@@ -29,31 +29,31 @@ use crate::http::version::HttpVersion;
 
 /// Struct of parsed HTTP Request
 #[derive(Debug)]
-struct HTTPRequest<'a> {
+pub struct HTTPRequest<'a> {
   // Request line
-  method: HttpMethod,
-  request_uri: RequestURI<'a>,
-  http_version: HttpVersion,
+  pub method: HttpMethod,
+  pub request_uri: RequestURI<'a>,
+  pub http_version: HttpVersion,
 
   // Header fields
-  header: Vec<HttpMethod>,
+  pub header: Vec<HTTPRequestHeader<'a>>,
 
   // Body field
-  body: String,
+  pub body: String,
 }
 
-impl<'a> Into<HTTPRequest<'a>> for &'a str {
-  fn into(self) -> HTTPRequest<'a> {
+impl<'a> From<&'a str> for HTTPRequest<'a> {
+  fn from(s: &'a str) -> HTTPRequest<'a> {
     let mut request = HTTPRequest {
       method: HttpMethod::Get,
       request_uri: RequestURI::Asterisk,
-      http_version: HttpVersion::Http11,
+      http_version: HttpVersion::Http_1_1,
       header: Vec::new(),
       body: String::new(),
     };
     let mut status = ProcessingRequestLine;
 
-    for line in self.split("\r\n") {
+    for line in s.split("\r\n") {
       match status {
         ProcessingRequestLine => {
           let req_line = line.split(' ').collect::<Vec<&str>>();
@@ -66,22 +66,22 @@ impl<'a> Into<HTTPRequest<'a>> for &'a str {
         }
 
         ProcessingHeaders => {
-          if self.is_empty() {
+          if !line.is_empty() {
+            request.header.push(line.into())
+          } else {
             status = ProcessingBodyFirstLine;
             request.body = String::new();
-            continue;
           }
-          request.header.push(self.into())
         }
 
         ProcessingBodyFirstLine => {
-          request.body.push_str(self);
+          request.body.push_str(line);
           status = ProcessingBody;
         }
 
         ProcessingBody => {
           request.body.push_str("\r\n");
-          request.body.push_str(self);
+          request.body.push_str(line);
         }
       }
     };
@@ -89,31 +89,26 @@ impl<'a> Into<HTTPRequest<'a>> for &'a str {
   }
 }
 
-impl<'a> Into<HTTPRequest<'a>> for &'a [u8] {
-  fn into(self) -> HTTPRequest<'a> {
-    unsafe {
-      std::str::from_utf8_unchecked(self)
-    }.into()
-  }
-}
-
 /// Enum of HTTP Method field
 #[derive(Debug)]
-enum HttpMethod {
-  // The GET method is used to retrieve information from the given server using
-  // a given URI. Requests using GET should only retrieve data and should have
-  // no other effect on the data.
+pub enum HttpMethod {
+  /* The GET method is used to retrieve information from the given server using
+   * a given URI. Requests using GET should only retrieve data and should have
+   * no other effect on the data.
+   */
   Get,
 
   // Same as GET, but it transfers the status line and the header section only.
   Head,
 
-  // A POST request is used to send data to the server, for example, customer
-  // information, file upload, etc. using HTML forms.
+  /* A POST request is used to send data to the server, for example, customer
+   * information, file upload, etc. using HTML forms.
+   */
   Post,
 
-  // Replaces all the current representations of the target resource with the
-  // uploaded content.
+  /* Replaces all the current representations of the target resource with the
+   * uploaded content.
+   */
   Put,
 
   // Removes all the current representations of the target resource given by URI.
@@ -131,36 +126,42 @@ enum HttpMethod {
 
 /// Enum of Request URI field
 #[derive(Debug)]
-enum RequestURI<'a> {
-  // The asterisk * is used when an HTTP request does not apply to a particular
-  // resource, but to the server itself, and is only allowed when the method
-  // used does not necessarily apply to a resource. For example:
-  // `OPTIONS * HTTP/1.1`
+pub enum RequestURI<'a> {
+  /* The asterisk * is used when an HTTP request does not apply to a particular
+   * resource, but to the server itself, and is only allowed when the method
+   * used does not necessarily apply to a resource. For example:
+   * `OPTIONS * HTTP/1.1`
+   */
   Asterisk,
 
-  // The absoluteURI is used when an HTTP request is being made to a proxy. The
-  // proxy is requested to forward the request or service from a valid cache,
-  // and return the response.  For example:
-  // `GET http://www.w3.org/pub/WWW/TheProject.html HTTP/1.1`
+  /* The absoluteURI is used when an HTTP request is being made to a proxy. The
+   * proxy is requested to forward the request or service from a valid cache,
+   * and return the response.  For example:
+   * `GET http: *www.w3.org/pub/WWW/TheProject.html HTTP/1.1`
+   */
   AbsoluteUri(&'a str),
 
-  // The most common form of Request-URI is that used to identify a resource on
-  // an origin server or gateway. For example, a client wishing to retrieve a
-  // resource directly from the origin server would create a TCP connection to
-  // port 80 of the host "www.w3.org" and send the following lines:
-  // ```
-  // GET /pub/WWW/TheProject.html HTTP/1.1
-  // Host: www.w3.org
-  // ```
-  // Note that the absolute path cannot be empty; if none is present in the
-  // original URI, it MUST be given as "/" (the server root).
+  /* The most common form of Request-URI is that used to identify a resource on
+   * an origin server or gateway. For example, a client wishing to retrieve a
+   * resource directly from the origin server would create a TCP connection to
+   * port 80 of the host "www.w3.org" and send the following lines:
+   * ```
+   * GET /pub/WWW/TheProject.html HTTP/1.1
+   * Host: www.w3.org
+   * ```
+   * Note that the absolute path cannot be empty; if none is present in the
+   * original URI, it MUST be given as "/" (the server root).
+   */
   AbsolutePath(&'a str),
 }
 
 /// Enum of Header field
 #[derive(Debug)]
-enum HTTPRequestHeader<'a> {
+pub enum HTTPRequestHeader<'a> {
+  Accept(&'a str),
   AcceptEncoding(&'a str),
+  Connection(&'a str),
+  ContentType(&'a str),
   Host(&'a str),
   Referer(&'a str),
   UserAgent(&'a str),
@@ -176,9 +177,9 @@ enum HTTPRequestParsingState {
   ProcessingBody,
 }
 
-impl Into<HttpMethod> for &str {
-  fn into(self) -> HttpMethod {
-    match self.to_ascii_uppercase().as_str() {
+impl From<&str> for HttpMethod {
+  fn from(s: &str) -> HttpMethod {
+    match s.to_ascii_uppercase().as_str() {
       "GET" => HttpMethod::Get,
       "HEAD" => HttpMethod::Head,
       "POST" => HttpMethod::Post,
@@ -187,41 +188,45 @@ impl Into<HttpMethod> for &str {
       "CONNECT" => HttpMethod::Connect,
       "OPTION" => HttpMethod::Option,
       "TRACE" => HttpMethod::Trace,
-      _ => panic!("Bad HTTP Method [{}]!", self)
+      _ => panic!("Bad HTTP Method [{}]!", s)
     }
   }
 }
 
-impl<'a> Into<RequestURI<'a>> for &'a str {
-  fn into(self) -> RequestURI<'a> {
-    match self {
+impl<'a> From<&'a str> for RequestURI<'a> {
+  fn from(s: &'a str) -> RequestURI<'a> {
+    match s {
       "*" => RequestURI::Asterisk,
       _ => {
-        if self.contains("://") {
-          RequestURI::AbsoluteUri(self)
-        } else if self.starts_with('/') {
-          RequestURI::AbsolutePath(self)
+        if s.contains("://") {
+          RequestURI::AbsoluteUri(s)
+        } else if s.starts_with('/') {
+          RequestURI::AbsolutePath(s)
         } else {
-          panic!("Bad Request URI [{}]!", self)
+          panic!("Bad Request URI [{}]!", s)
         }
       }
     }
   }
 }
 
-impl<'a> Into<HTTPRequestHeader<'a>> for &'a str {
-  fn into(self) -> HTTPRequestHeader<'a> {
-    match self.to_ascii_uppercase().as_str() {
-      "ACCEPT-ENCODING" => HTTPRequestHeader::AcceptEncoding(&self[17..]),
-      "HOST" => HTTPRequestHeader::Host(&self[6..]),
-      "REFERER" => HTTPRequestHeader::Referer(&self[9..]),
-      "USER-AGENT" => HTTPRequestHeader::UserAgent(&self[12..]),
+impl<'a> From<&'a str> for HTTPRequestHeader<'a> {
+  fn from(s: &'a str) -> HTTPRequestHeader<'a> {
+    let colon = s.find(':').expect(
+      format!("Failed to find a colon in [{}]!", s).as_str()
+    );
+
+    match s[..colon].to_ascii_uppercase().as_str() {
+      "ACCEPT" => HTTPRequestHeader::Accept(&s[(colon + 2)..]),
+      "ACCEPT-ENCODING" => HTTPRequestHeader::AcceptEncoding(&s[(colon + 2)..]),
+      "CONNECTION" => HTTPRequestHeader::Connection(&s[(colon + 2)..]),
+      "CONTENT-TYPE" => HTTPRequestHeader::ContentType(&s[(colon + 2)..]),
+      "HOST" => HTTPRequestHeader::Host(&s[(colon + 2)..]),
+      "REFERER" => HTTPRequestHeader::Referer(&s[(colon + 2)..]),
+      "USER-AGENT" => HTTPRequestHeader::UserAgent(&s[(colon + 2)..]),
       _ => {
-        let colon = self.find(':').expect(
-          format!("Failed to find a colon in [{}]!", self).as_str()
-        );
-        HTTPRequestHeader::_OtherHeader(&self[..colon],
-                                        &self[(colon + 2)..])
+        HTTPRequestHeader::_OtherHeader(&s[..colon],
+                                        &s[(colon + 2)..])
       }
     }
   }
