@@ -217,16 +217,16 @@ impl<'a> From<&'a str> for HTTPRequestHeader<'a> {
     );
 
     match s[..colon].to_ascii_uppercase().as_str() {
-      "ACCEPT" => HTTPRequestHeader::Accept(&s[(colon + 2)..]),
-      "ACCEPT-ENCODING" => HTTPRequestHeader::AcceptEncoding(&s[(colon + 2)..]),
-      "CONNECTION" => HTTPRequestHeader::Connection(&s[(colon + 2)..]),
-      "CONTENT-TYPE" => HTTPRequestHeader::ContentType(&s[(colon + 2)..]),
-      "HOST" => HTTPRequestHeader::Host(&s[(colon + 2)..]),
-      "REFERER" => HTTPRequestHeader::Referer(&s[(colon + 2)..]),
-      "USER-AGENT" => HTTPRequestHeader::UserAgent(&s[(colon + 2)..]),
+      "ACCEPT" => HTTPRequestHeader::Accept(&s[colon + 2..]),
+      "ACCEPT-ENCODING" => HTTPRequestHeader::AcceptEncoding(&s[colon + 2..]),
+      "CONNECTION" => HTTPRequestHeader::Connection(&s[colon + 2..]),
+      "CONTENT-TYPE" => HTTPRequestHeader::ContentType(&s[colon + 2..]),
+      "HOST" => HTTPRequestHeader::Host(&s[colon + 2..]),
+      "REFERER" => HTTPRequestHeader::Referer(&s[colon + 2..]),
+      "USER-AGENT" => HTTPRequestHeader::UserAgent(&s[colon + 2..]),
       _ => {
         HTTPRequestHeader::_OtherHeader(&s[..colon],
-                                        &s[(colon + 2)..])
+                                        &s[colon + 2..])
       }
     }
   }

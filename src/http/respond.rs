@@ -28,21 +28,42 @@ use crate::http::version::HttpVersion;
 #[derive(Debug)]
 pub struct HTTPRespond<'a> {
   // First line
-  http_version: HttpVersion,
-  status_code: StatusCode,
-  reason_phrase: &'a str,
+  pub http_version: HttpVersion,
+  pub status_code: StatusCode,
+  pub reason_phrase: &'a str,
 
   // Header fields
-  header: Vec<HttpRespondHeader<'a>>,
+  pub header: Vec<HttpRespondHeader<'a>>,
 
   // Body field
-  body: str,
+  pub body: &'a str,
+}
+
+#[allow(dead_code)]
+impl<'a> HTTPRespond<'a> {
+  fn from_body(body: &'a str,
+               http_version: HttpVersion,
+               status_code: StatusCode,
+               reason_phrase: &'a str) -> HTTPRespond<'a> {
+    HTTPRespond {
+      http_version,
+      status_code,
+      reason_phrase,
+      header: Vec::new(),
+      body,
+    }
+  }
+
+  fn with_header(respond: &mut HTTPRespond<'a>,
+                 header: HttpRespondHeader<'a>) {
+    respond.header.push(header);
+  }
 }
 
 /// Enum of HTTP Status Code field
-#[allow(non_camel_case_types,dead_code)]
+#[allow(non_camel_case_types, dead_code)]
 #[derive(Debug)]
-enum StatusCode {
+pub enum StatusCode {
   Continue = 100,
   SwitchingProtocols = 101,
   Processing = 102,
@@ -112,7 +133,7 @@ enum StatusCode {
 /// Enum of Header field
 #[allow(dead_code)]
 #[derive(Debug)]
-enum HttpRespondHeader<'a> {
+pub enum HttpRespondHeader<'a> {
   Age(&'a str),
   ContentEncoding(&'a str),
   ContentLength(&'a str),
