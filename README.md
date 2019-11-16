@@ -1,2 +1,2 @@
 # wxapp-server
-An API service under for UMD CSSA MiniApp.
+An backend API service/server for UMD CSSA MiniApp.
