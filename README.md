@@ -1,2 +1,4 @@
-# wxapp-server
-An backend API service/server for UMD CSSA MiniApp.
+
+
+# Hello-Server
+A simple server for simplest api backend processes.
