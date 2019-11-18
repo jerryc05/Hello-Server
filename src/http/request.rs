@@ -161,6 +161,7 @@ pub enum HTTPRequestHeader<'a> {
   Accept(&'a str),
   AcceptEncoding(&'a str),
   Connection(&'a str),
+  ContentLength(usize),
   ContentType(&'a str),
   Host(&'a str),
   Referer(&'a str),
@@ -220,6 +221,8 @@ impl<'a> From<&'a str> for HTTPRequestHeader<'a> {
       "ACCEPT" => HTTPRequestHeader::Accept(&s[colon + 2..]),
       "ACCEPT-ENCODING" => HTTPRequestHeader::AcceptEncoding(&s[colon + 2..]),
       "CONNECTION" => HTTPRequestHeader::Connection(&s[colon + 2..]),
+      "CONTENT-LENGTH" => HTTPRequestHeader::ContentLength((&s[colon + 2..]).parse()
+        .expect("Failed to convert Content-Length into usize!")),
       "CONTENT-TYPE" => HTTPRequestHeader::ContentType(&s[colon + 2..]),
       "HOST" => HTTPRequestHeader::Host(&s[colon + 2..]),
       "REFERER" => HTTPRequestHeader::Referer(&s[colon + 2..]),

@@ -6,6 +6,9 @@
       <sourceFolder url="file://$MODULE_DIR$/../wxapp-server\examples" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/../wxapp-server\tests" isTestSource="true" />
       <sourceFolder url="file://$MODULE_DIR$/../wxapp-server\benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../Hello-Server\examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/../Hello-Server\tests" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/../Hello-Server\benches" isTestSource="true" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
     </content>
     <orderEntry type="inheritedJdk" />

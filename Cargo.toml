@@ -1,5 +1,5 @@
 [package]
-name = "wxapp-server"
+name = "hello-server"
 version = "0.1.0"
 authors = ["Ziyan \"Jerry\" Chen <jerryc443@gmail.com>"]
 edition = "2018"
