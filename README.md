@@ -1,4 +1,2 @@
-
-
 # Hello-Server
-A simple server for simplest api backend processes.
+A simple server for backend API processing
