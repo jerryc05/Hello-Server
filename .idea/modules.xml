@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/wxapp-server.iml" filepath="$PROJECT_DIR$/.idea/wxapp-server.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/Hello-Server.iml" filepath="$PROJECT_DIR$/.idea/Hello-Server.iml" />
     </modules>
   </component>
 </project>

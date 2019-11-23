@@ -1,8 +1,8 @@
-use std::any::Any;
 use std::env;
 
 use tokio;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
+use tokio::net::tcp::split::{ReadHalf, WriteHalf};
 use tokio::net::TcpListener;
 
 use crate::http::request::HTTPRequest;
@@ -11,21 +11,16 @@ mod constants;
 mod http;
 
 #[tokio::main]
-async fn main() {
-  /* Allow passing a port number to listen on as the first argument of this
-   * program.
-   */
-  let port = env::args().nth(1).map_or(
-    constants::DEFAULT_PORT,
-    |_port| _port.parse().expect(format!("Failed to parse port [{}] to int!", _port).as_str()));
-
+pub async fn setup_server(ip_address: &str, port: u16,
+                          read_callback: fn(ReadHalf) -> (),
+                          write_callback: fn(WriteHalf) -> ()) {
   /* Next up we create a TCP listener which will listen for incoming
    * connections. This TCP listener is bound to the address we determined
    * above and must be associated with an event loop.
    */
-  let mut listener = TcpListener::bind((constants::DEFAULT_IP_ADDRESS, port))
+  let mut listener = TcpListener::bind((ip_address, port))
     .await.expect(format!("Failed to bind port [{}]!", port).as_str());
-  println!("Listening on {}:{}", constants::DEFAULT_IP_ADDRESS, port);
+  println!("Listening on {}:{}", ip_address, port);
 
   loop {
     // Asynchronously wait for an inbound socket. f:off
@@ -54,9 +49,9 @@ async fn main() {
           print!("{}", unsafe { std::str::from_utf8_unchecked(&bytes_buffer) });
 
           if n < bytes_buffer.len() {
-          tcp_stream.write_all("HTTP/1.1 200 OK\r\n\r\nHello!".as_bytes())
-                    .await.expect("Failed to write to TCP Stream!");
-            println!("write finished!",);
+            tcp_stream.write_all("HTTP/1.1 200 OK\r\n\r\nHello!".as_bytes())
+                      .await.expect("Failed to write to TCP Stream!");
+            println!("write finished!", );
             break;
           }
         }
@@ -64,3 +59,12 @@ async fn main() {
     });
   }
 }
+
+/*
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn it_works() {
+    assert_eq!(2 + 2, 4);
+  }
+}*/

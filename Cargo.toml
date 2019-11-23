@@ -1,5 +1,5 @@
 [package]
-name = "hello-server"
+name = "hello_server"
 version = "0.1.0"
 authors = ["Ziyan \"Jerry\" Chen <jerryc443@gmail.com>"]
 edition = "2018"
@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio  = "0.2.0-alpha.6"
+tokio  = ">=0.2.0-a"
 
 [profile.release]
 lto = true
