@@ -57,6 +57,7 @@ impl<'a> From<&'a str> for HTTPRequest<'a> {
       match status {
         ProcessingRequestLine => {
           let req_line = line.split(' ').collect::<Vec<&str>>();
+          println!("req-line=[{:?}]",req_line);
           assert!(req_line.len() >= 3);
 
           request.method = req_line[0].into();
@@ -160,6 +161,7 @@ pub enum RequestURI<'a> {
 pub enum HTTPRequestHeader<'a> {
   Accept(&'a str),
   AcceptEncoding(&'a str),
+  AcceptLanguage(&'a str),
   Connection(&'a str),
   ContentLength(usize),
   ContentType(&'a str),
@@ -219,6 +221,7 @@ impl<'a> From<&'a str> for HTTPRequestHeader<'a> {
 
     match s[..colon].to_ascii_uppercase().as_str() {
       "ACCEPT" => HTTPRequestHeader::Accept(&s[colon + 2..]),
+      "ACCEPT-LANGUAGE" => HTTPRequestHeader::AcceptLanguage(&s[colon + 2..]),
       "ACCEPT-ENCODING" => HTTPRequestHeader::AcceptEncoding(&s[colon + 2..]),
       "CONNECTION" => HTTPRequestHeader::Connection(&s[colon + 2..]),
       "CONTENT-LENGTH" => HTTPRequestHeader::ContentLength((&s[colon + 2..]).parse()
