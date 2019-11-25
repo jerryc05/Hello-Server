@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 async-std = { version = "^1", features = ["unstable", "attributes"] }
 chrono = "^0"
-futures = "^0"
 
 [profile.release]
 lto = true
