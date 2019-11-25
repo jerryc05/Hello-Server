@@ -1,5 +1,5 @@
 //! Sample HTTP Respond Format
-//! ```
+//! ```no run
 //! A Status-line (HTTP-Version SP Status-Code SP Reason-Phrase CRLF)
 //!
 //! Zero or more header (General|Request|Entity) fields followed by CRLF
@@ -11,7 +11,7 @@
 //! ```
 //!
 //! Example:
-//! ```
+//! ```no run
 //! HTTP/1.1 200 OK
 //! Date: Sun, 18 Oct 2012 10:36:20 GMT
 //! Server: Apache/2.2.14 (Win32)

@@ -1,5 +1,5 @@
 //! Sample HTTP Request Format
-//! ```
+//! ```no run
 //! A Request-line (Method SP Request-URI SP HTTP-Version CRLF)
 //!
 //! Zero or more header (General|Request|Entity) fields followed by CRLF
@@ -11,10 +11,10 @@
 //! ```
 //!
 //! Example:
-//! ```
+//! ```no run
 //! POST /cgi-bin/process.cgi HTTP/1.1
 //! User-Agent: Mozilla/4.0 (compatible; MSIE5.01; Windows NT)
-//! Host: www.tutorialspoint.com
+//! Host: www.example.com
 //! Content-Type: application/x-www-form-urlencoded
 //! Content-Length: length
 //! Accept-Language: en-us
