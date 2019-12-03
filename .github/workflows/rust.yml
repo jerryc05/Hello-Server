@@ -13,8 +13,8 @@ jobs:
         fetch-depth: 1
     - name: Check Rust Version
       run: rustup show
-    - name: Update Rust to Nightly
-      run: rustup default nightly && rustup update
+    - name: Switch Rust to Nightly
+      run: rustup default nightly
     - name: Build
       run: cargo build --verbose
     - name: Run tests
