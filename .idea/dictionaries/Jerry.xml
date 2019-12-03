@@ -3,6 +3,7 @@
     <words>
       <w>addr</w>
       <w>crlf</w>
+      <w>tcps</w>
       <w>tokio</w>
       <w>unprocessable</w>
     </words>

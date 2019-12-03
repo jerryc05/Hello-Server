@@ -44,7 +44,7 @@ impl<'a> HTTPRespond<'a> {
   fn from_body(body: &'a str,
                http_version: HttpVersion,
                status_code: StatusCode,
-               reason_phrase: &'a str) -> HTTPRespond<'a> {
+               reason_phrase: &'a str) -> Self {
     HTTPRespond {
       http_version,
       status_code,

@@ -24,6 +24,11 @@
 //! licenseID=string&content=string&/paramsXML=string
 //! ```
 
+use async_std::*;
+//use async_std::io::*;
+use async_std::io::prelude::*;
+use async_std::net::TcpStream;
+
 use crate::http::request::HTTPRequestParsingState::*;
 use crate::http::version::HttpVersion;
 
@@ -57,7 +62,6 @@ impl<'a> From<&'a str> for HTTPRequest<'a> {
       match status {
         ProcessingRequestLine => {
           let req_line = line.split(' ').collect::<Vec<&str>>();
-          println!("req-line=[{:?}]",req_line);
           assert!(req_line.len() >= 3);
 
           request.method = req_line[0].into();
@@ -87,6 +91,15 @@ impl<'a> From<&'a str> for HTTPRequest<'a> {
       }
     };
     request
+  }
+}
+
+impl<'a> From<(TcpStream, &'a mut Vec<u8>)> for HTTPRequest<'a> {
+  fn from((mut tcp_stream, buffer): (TcpStream, &'a mut Vec<u8>)) -> Self {
+    while let Ok(n) = task::block_on(tcp_stream.read(buffer)) {
+      std::println!("n=[{}]", n);
+    };
+    std::str::from_utf8(buffer).expect("Failed to parse UTF-8 str from buffer!").into()
   }
 }
 
@@ -197,7 +210,7 @@ impl From<&str> for HttpMethod {
 }
 
 impl<'a> From<&'a str> for RequestURI<'a> {
-  fn from(s: &'a str) -> RequestURI<'a> {
+  fn from(s: &'a str) -> Self {
     match s {
       "*" => RequestURI::Asterisk,
       _ => {
@@ -214,7 +227,7 @@ impl<'a> From<&'a str> for RequestURI<'a> {
 }
 
 impl<'a> From<&'a str> for HTTPRequestHeader<'a> {
-  fn from(s: &'a str) -> HTTPRequestHeader<'a> {
+  fn from(s: &'a str) -> Self {
     let colon = s.find(':').expect(
       format!("Failed to find a colon in [{}]!", s).as_str()
     );
@@ -225,7 +238,7 @@ impl<'a> From<&'a str> for HTTPRequestHeader<'a> {
       "ACCEPT-ENCODING" => HTTPRequestHeader::AcceptEncoding(&s[colon + 2..]),
       "CONNECTION" => HTTPRequestHeader::Connection(&s[colon + 2..]),
       "CONTENT-LENGTH" => HTTPRequestHeader::ContentLength((&s[colon + 2..]).parse()
-        .expect("Failed to convert Content-Length into usize!")),
+                                                                            .expect("Failed to convert Content-Length into usize!")),
       "CONTENT-TYPE" => HTTPRequestHeader::ContentType(&s[colon + 2..]),
       "HOST" => HTTPRequestHeader::Host(&s[colon + 2..]),
       "REFERER" => HTTPRequestHeader::Referer(&s[colon + 2..]),
