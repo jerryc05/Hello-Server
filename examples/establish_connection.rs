@@ -1,5 +1,3 @@
-#![feature(async_closure)]
-
 use async_std::net::TcpStream;
 
 //  use async_std::println;
