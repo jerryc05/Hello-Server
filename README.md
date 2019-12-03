@@ -1,2 +1,2 @@
 # Hello-Server
-A simple server for backend API processing
+A simple async HTTP/1.1 server.
