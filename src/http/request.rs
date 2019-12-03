@@ -24,10 +24,9 @@
 //! licenseID=string&content=string&/paramsXML=string
 //! ```
 
-use async_std::*;
-//use async_std::io::*;
 use async_std::io::prelude::*;
 use async_std::net::TcpStream;
+use async_std::task;
 
 use crate::http::request::HTTPRequestParsingState::*;
 use crate::http::version::HttpVersion;
@@ -47,59 +46,84 @@ pub struct HTTPRequest<'a> {
   pub body: String,
 }
 
-impl<'a> From<&'a str> for HTTPRequest<'a> {
-  fn from(s: &'a str) -> HTTPRequest<'a> {
-    let mut request = HTTPRequest {
-      method: HttpMethod::Get,
-      request_uri: RequestURI::Asterisk,
-      http_version: HttpVersion::Http_1_1,
-      header: Vec::new(),
-      body: String::new(),
-    };
+impl<'a> HTTPRequest<'a> {
+  fn from_str(s: &'a str) -> Result<Self, ()> {
+    let mut method: Option<HttpMethod> = None;
+    let mut request_uri: Option<RequestURI> = None;
+    let mut http_version: Option<HttpVersion> = None;
+    let mut header: Option<Vec<HTTPRequestHeader<'a>>> = None;
+    let mut body: Option<String> = None;
+
     let mut status = ProcessingRequestLine;
+    let mut parsed_str_count: usize = 0;
 
     for line in s.split("\r\n") {
       match status {
         ProcessingRequestLine => {
           let req_line = line.split(' ').collect::<Vec<&str>>();
-          assert!(req_line.len() >= 3);
-
-          request.method = req_line[0].into();
-          request.request_uri = req_line[1].into();
-          request.http_version = req_line[2].into();
-          status = ProcessingHeaders;
+          if req_line.len() < 3 {
+            println!("Failed to parse Request Line from [{:?}]", line);
+          } else {
+            method = Some(req_line[0].into());
+            request_uri = Some(req_line[1].into());
+            http_version = Some(req_line[2].into());
+            status = ProcessingHeaders;
+          }
+          parsed_str_count += line.len() + 2;
         }
 
         ProcessingHeaders => {
           if !line.is_empty() {
-            request.header.push(line.into())
+            if header.is_none() {
+              header = Some(vec![])
+            }
+            header.as_mut().expect("Failed to get header vector!")
+                  .push(line.into())
           } else {
-            status = ProcessingBodyFirstLine;
-            request.body = String::new();
+            status = ProcessingBody;
           }
-        }
-
-        ProcessingBodyFirstLine => {
-          request.body.push_str(line);
-          status = ProcessingBody;
+          parsed_str_count += line.len() + 2;
         }
 
         ProcessingBody => {
-          request.body.push_str("\r\n");
-          request.body.push_str(line);
+          body = Some((&s[parsed_str_count..]).to_owned());
         }
       }
     };
-    request
+    if method.is_some() && request_uri.is_some() && http_version.is_some() {
+      Ok(HTTPRequest {
+        method: method.expect("Failed to get METHOD!"),
+        request_uri: request_uri.expect("Failed to get REQUEST URI!"),
+        http_version: http_version.expect("Failed to get HTTP VERSION!"),
+        header: header.unwrap_or_default(),
+        body: body.unwrap_or_default(),
+      })
+    } else { Err(()) }
   }
-}
 
-impl<'a> From<(TcpStream, &'a mut Vec<u8>)> for HTTPRequest<'a> {
-  fn from((mut tcp_stream, buffer): (TcpStream, &'a mut Vec<u8>)) -> Self {
+  pub fn from_stream_with_buffer(
+    mut tcp_stream: TcpStream,
+    vec_buffer: &'a mut Vec<u8>,
+  ) -> Result<Self, ()> {
+    const DEFAULT_BUFFER_SIZE: u8 = std::u8::MAX;
+    let buffer = &mut [0; DEFAULT_BUFFER_SIZE as usize];
+
+    if vec_buffer.capacity() < DEFAULT_BUFFER_SIZE as usize {
+      vec_buffer.reserve(DEFAULT_BUFFER_SIZE as usize);
+    }
     while let Ok(n) = task::block_on(tcp_stream.read(buffer)) {
-      std::println!("n=[{}]", n);
+      if n > 0 {
+        std::println!("Read [{}] bytes!", n);
+        vec_buffer.extend_from_slice(&buffer[..n]);
+        if n == DEFAULT_BUFFER_SIZE as usize {
+          vec_buffer.reserve(vec_buffer.capacity() + DEFAULT_BUFFER_SIZE as usize);
+          continue;
+        }
+      }
+      break;
     };
-    std::str::from_utf8(buffer).expect("Failed to parse UTF-8 str from buffer!").into()
+    HTTPRequest::from_str(std::str::from_utf8(vec_buffer)
+      .expect("Failed to parse UTF-8 str from buffer!"))
   }
 }
 
@@ -189,12 +213,11 @@ pub enum HTTPRequestHeader<'a> {
 enum HTTPRequestParsingState {
   ProcessingRequestLine,
   ProcessingHeaders,
-  ProcessingBodyFirstLine,
   ProcessingBody,
 }
 
 impl From<&str> for HttpMethod {
-  fn from(s: &str) -> HttpMethod {
+  fn from(s: &str) -> Self {
     match s.to_ascii_uppercase().as_str() {
       "GET" => HttpMethod::Get,
       "HEAD" => HttpMethod::Head,

@@ -5,24 +5,26 @@ use async_std::net::{TcpListener, TcpStream};
 use async_std::prelude::*;
 use chrono::{FixedOffset, Utc};
 
-mod http;
+pub mod http;
 
 pub fn hello<T: Future + Send + 'static>(
   ip_addrs: [&str; 2],
   timezone_in_hr: i32,
-  _callback: fn(TcpStream, u128) -> T,
+  callback: fn(TcpStream, u128) -> T,
 ) {
   task::block_on(async move {
     let tcp_listeners: [TcpListener; 2] = [
       {
+        let listener = TcpListener::bind(ip_addrs[0])
+          .await.expect(format!("Failed to bind addr [{}]!", ip_addrs[0]).as_str());
         println!("Listening on  [{}]!", ip_addrs[0]).await;
-        TcpListener::bind(ip_addrs[0])
-          .await.expect(format!("Failed to bind addr [{}]!", ip_addrs[0]).as_str())
+        listener
       },
       {
+        let listener = TcpListener::bind(ip_addrs[1])
+          .await.expect(format!("Failed to bind addr [{}]!", ip_addrs[1]).as_str());
         println!("Listening on  [{}]!", ip_addrs[1]).await;
-        TcpListener::bind(ip_addrs[1])
-          .await.expect(format!("Failed to bind addr [{}]!", ip_addrs[1]).as_str())
+        listener
       }];
 
     let mut tcp_counter: u128 = 0;
@@ -47,7 +49,7 @@ pub fn hello<T: Future + Send + 'static>(
       println!("\u{2514}{}", DASH).await;
 
       task::spawn(async move {
-        _callback(stream, tcp_counter).await;
+        callback(stream, tcp_counter).await;
 
         // TODO change to `async println!` when possible!
         std::println!("\u{250C}{}", DASH);
