@@ -1,5 +1,3 @@
-pub extern crate async_std;
-
 use std::future::Future;
 
 use async_std::{println, task};
@@ -8,6 +6,8 @@ use async_std::prelude::*;
 use chrono::{FixedOffset, Utc};
 
 pub mod http;
+
+pub type TcpStream = TcpStream;
 
 pub fn hello<T: Future + Send + 'static>(
   ip_addrs: [&str; 2],
