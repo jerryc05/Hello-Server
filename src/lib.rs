@@ -1,3 +1,5 @@
+pub extern crate async_std;
+
 use std::future::Future;
 
 use async_std::{println, task};
