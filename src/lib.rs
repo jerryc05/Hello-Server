@@ -1,13 +1,12 @@
 use std::future::Future;
 
 use async_std::{println, task};
-use async_std::net::{TcpListener, TcpStream};
+use async_std::net::TcpListener;
+pub use async_std::net::TcpStream;
 use async_std::prelude::*;
 use chrono::{FixedOffset, Utc};
 
 pub mod http;
-
-pub type TcpStream = TcpStream;
 
 pub fn hello<T: Future + Send + 'static>(
   ip_addrs: [&str; 2],
