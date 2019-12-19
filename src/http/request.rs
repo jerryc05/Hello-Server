@@ -24,9 +24,7 @@
 //! licenseID=string&content=string&/paramsXML=string
 //! ```
 
-use async_std::io::prelude::*;
-use async_std::net::TcpStream;
-use async_std::task;
+use std::convert::TryFrom;
 
 use crate::http::request::HTTPRequestParsingState::*;
 use crate::http::version::HttpVersion;
@@ -46,13 +44,15 @@ pub struct HTTPRequest<'a> {
   pub body: String,
 }
 
-impl<'a> HTTPRequest<'a> {
-  fn from_str(s: &'a str) -> Result<Self, ()> {
-    let mut method: Option<HttpMethod> = None;
-    let mut request_uri: Option<RequestURI> = None;
-    let mut http_version: Option<HttpVersion> = None;
-    let mut header: Option<Vec<HTTPRequestHeader<'a>>> = None;
-    let mut body: Option<String> = None;
+impl<'a> TryFrom<&'a str> for HTTPRequest<'a> {
+  type Error = &'static str;
+
+  fn try_from(s: &'a str) -> Result<Self, Self::Error> {
+    let mut method = None;
+    let mut request_uri = None;
+    let mut http_version = None;
+    let mut header = None;
+    let mut body = None;
 
     let mut status = ProcessingRequestLine;
     let mut parsed_str_count: usize = 0;
@@ -98,32 +98,9 @@ impl<'a> HTTPRequest<'a> {
         header: header.unwrap_or_default(),
         body: body.unwrap_or_default(),
       })
-    } else { Err(()) }
-  }
-
-  pub fn from_stream_with_buffer(
-    mut tcp_stream: TcpStream,
-    vec_buffer: &'a mut Vec<u8>,
-  ) -> Result<Self, ()> {
-    const DEFAULT_BUFFER_SIZE: u8 = std::u8::MAX;
-    let buffer = &mut [0; DEFAULT_BUFFER_SIZE as usize];
-
-    if vec_buffer.capacity() < DEFAULT_BUFFER_SIZE as usize {
-      vec_buffer.reserve(DEFAULT_BUFFER_SIZE as usize);
+    } else {
+      Err("Invalid request content!")
     }
-    while let Ok(n) = task::block_on(tcp_stream.read(buffer)) {
-      if n > 0 {
-        std::println!("Read [{}] bytes!", n);
-        vec_buffer.extend_from_slice(&buffer[..n]);
-        if n == DEFAULT_BUFFER_SIZE as usize {
-          vec_buffer.reserve(vec_buffer.capacity() + DEFAULT_BUFFER_SIZE as usize);
-          continue;
-        }
-      }
-      break;
-    };
-    HTTPRequest::from_str(std::str::from_utf8(vec_buffer)
-      .expect("Failed to parse UTF-8 str from buffer!"))
   }
 }
 

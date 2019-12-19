@@ -10,7 +10,7 @@ pub mod http;
 
 pub fn hello<T: Future + Send + 'static>(
   ip_addrs: [&str; 2],
-  timezone_in_hr: i32,
+  gmt_in_hr: i32,
   callback: fn(TcpStream, u128) -> T,
 ) {
   task::block_on(async move {
@@ -37,8 +37,8 @@ pub fn hello<T: Future + Send + 'static>(
 
       tcp_counter = (tcp_counter + 1) % (std::u128::MAX - 1);
       const DASH: &str = "\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}\u{2500}";
-      let local_timezone_offset = FixedOffset::east_opt(timezone_in_hr * 3600)
-        .expect(&format!("Failed to parse timezone UTC{}!", timezone_in_hr));
+      let local_timezone_offset = FixedOffset::east_opt(gmt_in_hr * 3600)
+        .expect(&format!("Failed to parse timezone UTC{}!", gmt_in_hr));
 
       println!("\u{250C}{}", DASH).await;
       println!("\u{2502} Incoming TCP #{} @ {:?} ", tcp_counter,

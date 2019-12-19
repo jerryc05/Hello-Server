@@ -1,8 +1,12 @@
-//use async_std::io::*;
-//use async_std::io::prelude::*;
+use std::convert::TryFrom;
+
 use async_std::net::TcpStream;
 
-//  use async_std::println;
+use hello_server::http::request::*;
+//use async_std::io::*;
+//use async_std::io::prelude::*;
+//use async_std::println;
+use hello_server::http::util::*;
 
 /// Default listening ip
 const DEFAULT_IP_ADDRESS_1: &str = "127.0.0.1:6006";
@@ -14,8 +18,8 @@ fn main() {
 }
 
 async fn process(_tcp_stream: TcpStream, _tcp_num: u128) {
-  use hello_server::http::request::*;
-
   // TODO change to `async println!` when possible!
-  std::println!("{:?}", HTTPRequest::from_stream_with_buffer(_tcp_stream, &mut vec![]));
+  std::println!("{:?}", HTTPRequest::try_from(
+    parse_tcp(_tcp_stream).as_str()
+  ).unwrap());
 }
