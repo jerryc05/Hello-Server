@@ -78,7 +78,7 @@ impl<'a> TryFrom<&'a str> for HTTPRequest<'a> {
               header = Some(vec![])
             }
             header.as_mut().expect("Failed to get header vector!")
-                  .push(line.into())
+                .push(line.into())
           } else {
             status = ProcessingBody;
           }
@@ -173,8 +173,8 @@ pub enum RequestURI<'a> {
 /// Enum of Header field
 #[derive(Debug)]
 pub enum HTTPRequestHeader<'a> {
-  Accept(&'a str),
-  AcceptEncoding(&'a str),
+  Accept(Vec<HTTPRequestHeaderAccept<'a>>),
+  AcceptEncoding(Vec<&'a str>),
   AcceptLanguage(&'a str),
   Connection(&'a str),
   ContentLength(usize),
@@ -183,6 +183,14 @@ pub enum HTTPRequestHeader<'a> {
   Referer(&'a str),
   UserAgent(&'a str),
   _OtherHeader(&'a str, &'a str),
+}
+
+/// Struct of Header field "Accept"
+#[derive(Debug)]
+pub struct HTTPRequestHeaderAccept<'a> {
+  mime_type: &'a str,
+  mime_subtype: &'a str,
+  q_factor_weighting: Option<f32>,
 }
 
 /// Enum of states when parsing from str/String to HTTPRequest
@@ -233,16 +241,99 @@ impl<'a> From<&'a str> for HTTPRequestHeader<'a> {
     );
 
     match s[..colon].to_ascii_uppercase().as_str() {
-      "ACCEPT" => HTTPRequestHeader::Accept(&s[colon + 2..]),
-      "ACCEPT-LANGUAGE" => HTTPRequestHeader::AcceptLanguage(&s[colon + 2..]),
-      "ACCEPT-ENCODING" => HTTPRequestHeader::AcceptEncoding(&s[colon + 2..]),
-      "CONNECTION" => HTTPRequestHeader::Connection(&s[colon + 2..]),
-      "CONTENT-LENGTH" => HTTPRequestHeader::ContentLength((&s[colon + 2..]).parse()
-                                                                            .expect("Failed to convert Content-Length into usize!")),
-      "CONTENT-TYPE" => HTTPRequestHeader::ContentType(&s[colon + 2..]),
-      "HOST" => HTTPRequestHeader::Host(&s[colon + 2..]),
-      "REFERER" => HTTPRequestHeader::Referer(&s[colon + 2..]),
-      "USER-AGENT" => HTTPRequestHeader::UserAgent(&s[colon + 2..]),
+      "ACCEPT" => {
+        let mut vec = vec![];
+        let mut s = &s[colon + 1..];
+        while s.starts_with(' ') {
+          s = &s[1..];
+        }
+        for mut item in s.split(',') {
+          item = item.trim();
+
+          let slash_index = item.find('/')
+              .expect("Failed to parse MIME Type in Accept header!");
+          let mime_type = &item[..slash_index];
+          item = &item[(slash_index + 1)..];
+
+          let semicolon_index = item.find(';');
+          let mime_subtype;
+          let q_factor_weighting;
+
+          if semicolon_index.is_some() {
+            let semicolon_index = semicolon_index
+                .expect("Failed to parse MIME Subtype in Accept header!");
+            mime_subtype = &item[..semicolon_index];
+            item = &item[(semicolon_index + 1)..];
+            while item.starts_with(' ') || item.starts_with('q') ||
+                item.starts_with('=') { item = &item[1..]; }
+
+            q_factor_weighting = Some(item.parse::<f32>()
+                .expect("Failed to parse Q-Factor Weighting to float number"));
+          } else {
+            mime_subtype = item;
+            q_factor_weighting = None;
+          }
+          vec.push(HTTPRequestHeaderAccept { mime_type, mime_subtype, q_factor_weighting });
+        }
+        HTTPRequestHeader::Accept(vec)
+      }
+      "ACCEPT-LANGUAGE" => {
+        let mut s = &s[colon + 1..];
+        while s.starts_with(' ') {
+          s = &s[1..];
+        }
+        HTTPRequestHeader::AcceptLanguage(s)
+      }
+      "ACCEPT-ENCODING" => {
+        let mut s = &s[colon + 1..];
+        while s.starts_with(' ') {
+          s = &s[1..];
+        }
+        HTTPRequestHeader::AcceptEncoding(s.split_ascii_whitespace().collect())
+      }
+      "CONNECTION" => {
+        let mut s = &s[colon + 1..];
+        while s.starts_with(' ') {
+          s = &s[1..];
+        }
+        HTTPRequestHeader::Connection(s)
+      }
+      "CONTENT-LENGTH" => {
+        let mut s = &s[colon + 1..];
+        while s.starts_with(' ') {
+          s = &s[1..];
+        }
+        HTTPRequestHeader::ContentLength(s.parse()
+            .expect("Failed to convert Content-Length into usize!"))
+      }
+      "CONTENT-TYPE" => {
+        let mut s = &s[colon + 1..];
+        while s.starts_with(' ') {
+          s = &s[1..];
+        }
+        HTTPRequestHeader::ContentType(s)
+      }
+      "HOST" => {
+        let mut s = &s[colon + 1..];
+        while s.starts_with(' ') {
+          s = &s[1..];
+        }
+        HTTPRequestHeader::Host(s)
+      }
+      "REFERER" => {
+        let mut s = &s[colon + 1..];
+        while s.starts_with(' ') {
+          s = &s[1..];
+        }
+        HTTPRequestHeader::Referer(s)
+      }
+      "USER-AGENT" => {
+        let mut s = &s[colon + 1..];
+        while s.starts_with(' ') {
+          s = &s[1..];
+        }
+        HTTPRequestHeader::UserAgent(s)
+      }
       _ => {
         HTTPRequestHeader::_OtherHeader(&s[..colon],
                                         &s[colon + 2..])
