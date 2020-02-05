@@ -1,14 +1,14 @@
-use async_std::net::TcpStream;
+use hello_server::TcpStream;
 
 //  use async_std::println;
 
 /// Default listening ip
-const DEFAULT_IP_ADDRESS_1: &str = "127.0.0.1:6006";
-const DEFAULT_IP_ADDRESS_2: &str = "::1:6006";
+const DEFAULT_IP_ADDRESS_1: &str = "127.0.0.1";
+const DEFAULT_IP_ADDRESS_2: &str = "::1";
+const PORT: u16 = 6006;
 
 fn main() {
-  hello_server::hello([DEFAULT_IP_ADDRESS_1, DEFAULT_IP_ADDRESS_2],
-                      -5, process);
+  hello_server::hello_from_str(DEFAULT_IP_ADDRESS_1, PORT, -5, process);
 }
 
 async fn process(_tcp_stream: TcpStream, _tcp_num: u128) {
