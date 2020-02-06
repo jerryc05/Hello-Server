@@ -3,7 +3,7 @@ use std::io::{Error, ErrorKind, Read, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, Instant};
 
-use mio::{Events, Poll, PollOpt, Ready, Token};
+use mio::{Events, Interest, Poll, Token};
 use mio::net::TcpListener;
 pub use mio::net::TcpStream;
 
@@ -51,18 +51,18 @@ pub fn hello<T>(
 ) -> Result<(), Error> where
     T: Future + Send + 'static {
 // Parse IP Address into Socket Address
-  let ref socket_addr = SocketAddr::new(ip_addr.into(), port);
+  let socket_addr = SocketAddr::new(ip_addr.into(), port);
 
 // Setup the server socket
-  let server_acceptor = TcpListener::bind(socket_addr)?; //todo
+  let mut server_acceptor = TcpListener::bind(socket_addr)?; //todo
 
 // Create a Poll instance
   let mut poll: Poll = Poll::new()?; //todo
 
 // Start listening for incoming connections
-  poll.register(&server_acceptor, SERVER_INCOMING_TOKEN,
-                Ready::readable(),
-                PollOpt::edge())?; //todo
+  poll.registry().register(
+    &mut server_acceptor, SERVER_INCOMING_TOKEN,
+    Interest::READABLE)?; //todo
 
 // Setup the client socket
   let mut client = TcpStream::connect(socket_addr)?; //todo
@@ -70,9 +70,9 @@ pub fn hello<T>(
   let mut server = None;
 
 // Register the client
-  poll.register(&client, CLIENT_TOKEN,
-                Ready::readable() | Ready::writable(),
-                PollOpt::edge())?; //todo
+  poll.registry().register(
+    &mut client, CLIENT_TOKEN,
+    Interest::READABLE | Interest::WRITABLE)?; //todo
 
 // Create storage for events
   let mut events = Events::with_capacity(256);
@@ -90,16 +90,16 @@ pub fn hello<T>(
 
       match event.token() {
         SERVER_INCOMING_TOKEN => {
-          let (handler, addr) = server_acceptor.accept()?; //todo
+          let (mut handler, addr) = server_acceptor.accept()?; //todo
           println!("accept from addr: {}", &addr);
-          poll.register(&handler, SERVER_TOKEN,
-                        Ready::readable() | Ready::writable(),
-                        PollOpt::edge())?; //todo
+          poll.registry().register(
+            &mut handler, SERVER_TOKEN,
+            Interest::READABLE | Interest::WRITABLE)?; //todo
           server = Some(handler);
         }
 
         SERVER_TOKEN => {
-          if event.readiness().is_writable() {
+          if event.is_writable() {
             if let Some(ref mut handler) = &mut server {
               match handler.write(b"SERVER_HELLO") {
                 Ok(_) => {
@@ -112,7 +112,7 @@ pub fn hello<T>(
               }
             }
           }
-          if event.readiness().is_readable() {
+          if event.is_readable() {
             let mut hello = [0; 12];
             if let Some(ref mut handler) = &mut server {
               match handler.read_exact(&mut hello) {
@@ -130,7 +130,7 @@ pub fn hello<T>(
         }
 
         CLIENT_TOKEN => {
-          if event.readiness().is_writable() {
+          if event.is_writable() {
             match client.write(b"CLIENT_HELLO") {
               Ok(_) => {
                 println!("client wrote");
@@ -141,7 +141,7 @@ pub fn hello<T>(
               }
             }
           }
-          if event.readiness().is_readable() {
+          if event.is_readable() {
             let mut hello = [0; 12];
             match client.read_exact(&mut hello) {
               Ok(_) => {
@@ -155,6 +155,7 @@ pub fn hello<T>(
             }
           }
         }
+
         _ => unreachable!(),
       }
     }
