@@ -1,33 +1,53 @@
+use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::hash::{BuildHasher, BuildHasherDefault};
+use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 
 use mio::{Poll, Token};
 
-pub struct TokenMgr(HashMap<usize, Token>);
+pub struct TokenMgr(HashMap<usize, Token, BuildNoHashUsizeHasher>);
 
 impl TokenMgr {
-  pub fn new() -> TokenMgr {
-    let x: dyn BuildHasher = BuildHasherDefault::default();
-    TokenMgr(HashMap::with_hasher(x))
+  pub fn new() -> Self {
+    let map = HashMap::with_hasher(
+      BuildNoHashUsizeHasher::default());
+    TokenMgr(map)
   }
 
-  pub fn next_server_token(&self) -> Token {
+  pub fn next_token(&self) -> Token {
     for i in (1..=usize::max_value() - 1).step_by(2) {
-      if !self.contains_key(&i) {
-        Token(i)
+      if !self.0.contains_key(&i) {
+        return Token(i);
       }
     }
-    panic!("No more available server tokens!")
+    panic!("No more available tokens!")
   }
 
-  pub fn next_client_token(&self, server_token: Token) -> Token {
-    debug_assert!(!self.contains_key(&(server_token.0 + 1)));
-    Token(server_token.0 + 1)
-  }
-
-  pub fn release_token(&mut self, token: Token, &mut poll: Poll) {
-    let x = if token.0 % 2 == 0 { token.0 - 1 } else { token.0 };
-    poll.registry().deregister(self.remove(&x));
-    poll.registry().deregister(self.remove(&(x + 1)));
+  pub fn release_token(&mut self, token: &mut Token, poll: &Poll) {
+    self.0.remove(&token.0);
+    poll.registry().deregister(token);
   }
 }
+
+struct NoHashUsizeHasher(u64);
+
+impl Hasher for NoHashUsizeHasher {
+  fn finish(&self) -> u64 {
+    self.0
+  }
+
+  fn write(&mut self, bytes: &[u8]) {
+    unreachable!("Incorrect use of NoHash-Hasher!")
+  }
+
+  fn write_usize(&mut self, i: usize) {
+    self.0 = u64::from(i)
+  }
+}
+
+impl Default for NoHashUsizeHasher {
+  fn default() -> Self {
+    NoHashUsizeHasher(1)
+  }
+}
+
+type BuildNoHashUsizeHasher = BuildHasherDefault<NoHashUsizeHasher>;

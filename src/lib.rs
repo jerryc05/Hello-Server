@@ -98,12 +98,12 @@ pub fn hello<T>(
           let (mut handler, addr) = server_acceptor.accept()?; //todo
           println!("accept from addr: {}", &addr);
           poll.registry().register(
-            &mut handler, token_mgr.next_server_token(),
+            &mut handler, token_mgr.next_token(),
             Interest::READABLE | Interest::WRITABLE)?; //todo
           server = Some(handler);
         }
 
-        SERVER_TOKEN => {
+        Token(token_id) => {
           if event.is_writable() {
             if let Some(ref mut handler) = &mut server {
               match handler.write(b"SERVER_HELLO") {
