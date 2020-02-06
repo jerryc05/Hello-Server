@@ -9,9 +9,9 @@ pub use mio::net::TcpStream;
 
 pub mod http;
 
-const SERVER_ACCEPT: Token = Token(0);
-const SERVER: Token = Token(1);
-const CLIENT: Token = Token(2);
+const SERVER_INCOMING_TOKEN: Token = Token(0);
+const SERVER_TOKEN: Token = Token(1);
+const CLIENT_TOKEN: Token = Token(2);
 
 
 pub fn hello_from_str<T>(
@@ -54,61 +54,67 @@ pub fn hello<T>(
   let ref socket_addr = SocketAddr::new(ip_addr.into(), port);
 
 // Setup the server socket
-  let server = TcpListener::bind(socket_addr)?;
+  let server_acceptor = TcpListener::bind(socket_addr)?; //todo
 
-// Create a POLL instance
-  let poll: Poll = Poll::new()?;
+// Create a Poll instance
+  let mut poll: Poll = Poll::new()?; //todo
 
 // Start listening for incoming connections
-  poll.register(&server, SERVER_ACCEPT, Ready::readable(),
-                PollOpt::edge())?;
+  poll.register(&server_acceptor, SERVER_INCOMING_TOKEN,
+                Ready::readable(),
+                PollOpt::edge())?; //todo
 
 // Setup the client socket
-  let mut client = TcpStream::connect(socket_addr)?;
+  let mut client = TcpStream::connect(socket_addr)?; //todo
 
-  let mut server_handler = None;
+  let mut server = None;
 
 // Register the client
-  poll.register(&client, CLIENT, Ready::readable() | Ready::writable(),
-                PollOpt::edge())?;
+  poll.register(&client, CLIENT_TOKEN,
+                Ready::readable() | Ready::writable(),
+                PollOpt::edge())?; //todo
 
 // Create storage for events
-  let mut events = Events::with_capacity(1024);
+  let mut events = Events::with_capacity(256);
 
-  let start = Instant::now();
-  let timeout = Duration::from_millis(10);
-  'top: loop {
-    poll.poll(&mut events, None)?;
+//  let start = Instant::now();
+//  let timeout = Duration::from_millis(10);
+
+  'main: loop {
+    poll.poll(&mut events, None)?; //todo
+
     for event in events.iter() {
-      if start.elapsed() >= timeout {
-        break 'top;
-      }
+//      if start.elapsed() >= timeout {
+//        break 'main;
+//      }
+
       match event.token() {
-        SERVER_ACCEPT => {
-          let (handler, addr) = server.accept()?;
+        SERVER_INCOMING_TOKEN => {
+          let (handler, addr) = server_acceptor.accept()?; //todo
           println!("accept from addr: {}", &addr);
-          poll.register(&handler, SERVER,
-                        Ready::readable() | Ready::writable(), PollOpt::edge())?;
-          server_handler = Some(handler);
+          poll.register(&handler, SERVER_TOKEN,
+                        Ready::readable() | Ready::writable(),
+                        PollOpt::edge())?; //todo
+          server = Some(handler);
         }
 
-        SERVER => {
+        SERVER_TOKEN => {
           if event.readiness().is_writable() {
-            if let Some(ref mut handler) = &mut server_handler {
+            if let Some(ref mut handler) = &mut server {
               match handler.write(b"SERVER_HELLO") {
                 Ok(_) => {
                   println!("server wrote");
                 }
                 Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
                 err => {
-                  err?;
+                  err?; //todo
                 }
               }
             }
           }
           if event.readiness().is_readable() {
             let mut hello = [0; 12];
-            if let Some(ref mut handler) = &mut server_handler {
+            if let Some(ref mut handler) = &mut server {
               match handler.read_exact(&mut hello) {
                 Ok(_) => {
                   assert_eq!(b"CLIENT_HELLO", &hello);
@@ -116,14 +122,14 @@ pub fn hello<T>(
                 }
                 Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
                 err => {
-                  err?;
+                  err?; //todo
                 }
               }
             }
           }
         }
 
-        CLIENT => {
+        CLIENT_TOKEN => {
           if event.readiness().is_writable() {
             match client.write(b"CLIENT_HELLO") {
               Ok(_) => {
@@ -131,7 +137,7 @@ pub fn hello<T>(
               }
               Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
               err => {
-                err?;
+                err?; //todo
               }
             }
           }
@@ -144,7 +150,7 @@ pub fn hello<T>(
               }
               Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
               err => {
-                err?;
+                err?; //todo
               }
             }
           }
