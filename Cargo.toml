@@ -7,10 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#chrono = "<0.5"
+nohash-hasher = "^0.1"
+#chrono = "^0.4"
 
 [dependencies.mio]
-version = "~0.7.0-a"
+version = "^0.7.0-a"
 features = ["tcp", "os-poll"]
 
 [profile.release]

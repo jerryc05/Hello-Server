@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::future::Future;
+use std::hash::{BuildHasher, BuildHasherDefault};
 use std::io::{Error, ErrorKind, Read, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::time::{Duration, Instant};
@@ -7,11 +9,14 @@ use mio::{Events, Interest, Poll, Token};
 use mio::net::TcpListener;
 pub use mio::net::TcpStream;
 
+use crate::token_manager::TokenMgr;
+
 pub mod http;
+mod token_manager;
 
 const SERVER_INCOMING_TOKEN: Token = Token(0);
-const SERVER_TOKEN: Token = Token(1);
-const CLIENT_TOKEN: Token = Token(2);
+//const SERVER_TOKEN: Token = Token(1);
+//const CLIENT_TOKEN: Token = Token(2);
 
 
 pub fn hello_from_str<T>(
@@ -66,13 +71,13 @@ pub fn hello<T>(
 
 // Setup the client socket
   let mut client = TcpStream::connect(socket_addr)?; //todo
-
   let mut server = None;
+  let token_mgr = TokenMgr::new();
 
 // Register the client
-  poll.registry().register(
-    &mut client, CLIENT_TOKEN,
-    Interest::READABLE | Interest::WRITABLE)?; //todo
+//  poll.registry().register(
+//    &mut client, CLIENT_TOKEN,
+//    Interest::READABLE | Interest::WRITABLE)?; //todo
 
 // Create storage for events
   let mut events = Events::with_capacity(256);
@@ -93,7 +98,7 @@ pub fn hello<T>(
           let (mut handler, addr) = server_acceptor.accept()?; //todo
           println!("accept from addr: {}", &addr);
           poll.registry().register(
-            &mut handler, SERVER_TOKEN,
+            &mut handler, token_mgr.next_server_token(),
             Interest::READABLE | Interest::WRITABLE)?; //todo
           server = Some(handler);
         }
@@ -129,32 +134,32 @@ pub fn hello<T>(
           }
         }
 
-        CLIENT_TOKEN => {
-          if event.is_writable() {
-            match client.write(b"CLIENT_HELLO") {
-              Ok(_) => {
-                println!("client wrote");
-              }
-              Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
-              err => {
-                err?; //todo
-              }
-            }
-          }
-          if event.is_readable() {
-            let mut hello = [0; 12];
-            match client.read_exact(&mut hello) {
-              Ok(_) => {
-                assert_eq!(b"SERVER_HELLO", &hello);
-                println!("client received");
-              }
-              Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
-              err => {
-                err?; //todo
-              }
-            }
-          }
-        }
+//        CLIENT_TOKEN => {
+//          if event.is_writable() {
+//            match client.write(b"CLIENT_HELLO") {
+//              Ok(_) => {
+//                println!("client wrote");
+//              }
+//              Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
+//              err => {
+//                err?; //todo
+//              }
+//            }
+//          }
+//          if event.is_readable() {
+//            let mut hello = [0; 12];
+//            match client.read_exact(&mut hello) {
+//              Ok(_) => {
+//                assert_eq!(b"SERVER_HELLO", &hello);
+//                println!("client received");
+//              }
+//              Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
+//              err => {
+//                err?; //todo
+//              }
+//            }
+//          }
+//        }
 
         _ => unreachable!(),
       }
