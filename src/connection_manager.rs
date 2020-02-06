@@ -1,12 +1,18 @@
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
 
 use mio::{Poll, Token};
+use mio::net::TcpListener;
 
-pub struct TokenMgr(HashMap<usize, Token, BuildNoHashUsizeHasher>);
+type K = usize;
+type V<'a> = &'a mut TcpListener;
 
-impl TokenMgr {
+/// A Manager that maps `Token ID` to `TcpListener`.
+pub struct TokenMgr<'a>(HashMap<K, V<'a>, BuildNoHashUsizeHasher>);
+
+impl TokenMgr<'_> {
   pub fn new() -> Self {
     let map = HashMap::with_hasher(
       BuildNoHashUsizeHasher::default());
@@ -23,8 +29,10 @@ impl TokenMgr {
   }
 
   pub fn release_token(&mut self, token: &mut Token, poll: &Poll) {
-    self.0.remove(&token.0);
-    poll.registry().deregister(token);
+    match self.0.remove(&token.0) {
+      Some(listener) => { poll.registry().deregister(listener); }
+      _ => { panic!("Token [{}] already removed from map unexpectedly!", token.0); }
+    };
   }
 }
 
@@ -40,7 +48,10 @@ impl Hasher for NoHashUsizeHasher {
   }
 
   fn write_usize(&mut self, i: usize) {
-    self.0 = u64::from(i)
+    match u64::try_from(i) {
+      Ok(value) => self.0 = value,
+      Err(e) => panic!("Failed to parse [{}] from usize to u64! [{}]", i, e)
+    }
   }
 }
 

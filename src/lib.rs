@@ -9,10 +9,10 @@ use mio::{Events, Interest, Poll, Token};
 use mio::net::TcpListener;
 pub use mio::net::TcpStream;
 
-use crate::token_manager::TokenMgr;
+use crate::connection_manager::TokenMgr;
 
 pub mod http;
-mod token_manager;
+mod connection_manager;
 
 const SERVER_INCOMING_TOKEN: Token = Token(0);
 //const SERVER_TOKEN: Token = Token(1);
