@@ -1,60 +1,33 @@
-use std::collections::HashMap;
 use std::future::Future;
-use std::hash::{BuildHasher, BuildHasherDefault};
 use std::io::{Error, ErrorKind, Read, Write};
 use std::net::{IpAddr, SocketAddr};
-use std::time::{Duration, Instant};
 
-use mio::{Events, Interest, Poll, Token};
+use mio::{Events, Interest};
+pub use mio::{Poll, Token};
 use mio::net::TcpListener;
 pub use mio::net::TcpStream;
 
-use crate::connection_manager::TokenMgr;
+use crate::connection_manager::ConnMgr;
+
+//use std::time::{Duration, Instant};
 
 pub mod http;
 mod connection_manager;
+mod no_hash_hasher;
+mod num_trait;
 
 const SERVER_INCOMING_TOKEN: Token = Token(0);
 //const SERVER_TOKEN: Token = Token(1);
 //const CLIENT_TOKEN: Token = Token(2);
 
 
-pub fn hello_from_str<T>(
-  ip_addr: &str,
-  port: u16,
-  gmt_in_hr: i32,
-  callback: fn(TcpStream, u128) -> T,
-) -> Result<(), Error> where
-    T: Future + Send + 'static {
-  match ip_addr.parse() {
-    Ok(addr) => {
-      hello(addr, port, gmt_in_hr, callback)
-    }
-    Err(err) => {
-      panic!("Failed to parse IpAddr from [{}]! Err = [{}]", ip_addr, err)
-    }
-  }
-}
-
-pub fn hello_from_arr<T, U>(
-  ip_addr: U,
-  port: u16,
-  gmt_in_hr: i32,
-  callback: fn(TcpStream, u128) -> T,
-) -> Result<(), Error> where
-    T: Future + Send + 'static,
-    U: Into<IpAddr> {
-  hello(ip_addr.into(), port, gmt_in_hr, callback)
-}
-
-
 pub fn hello<T>(
   ip_addr: IpAddr,
   port: u16,
-  gmt_in_hr: i32,
-  callback: fn(TcpStream, u128) -> T,
-) -> Result<(), Error> where
-    T: Future + Send + 'static {
+  _gmt_in_hr: i32,
+  _callback: fn(TcpStream, u128) -> T,
+) -> Result<(), Error>
+  where T: Future + Send + 'static {
 // Parse IP Address into Socket Address
   let socket_addr = SocketAddr::new(ip_addr.into(), port);
 
@@ -70,9 +43,9 @@ pub fn hello<T>(
     Interest::READABLE)?; //todo
 
 // Setup the client socket
-  let mut client = TcpStream::connect(socket_addr)?; //todo
-  let mut server = None;
-  let token_mgr = TokenMgr::new();
+//  let mut client = TcpStream::connect(socket_addr)?; //todo
+//  let mut server = None;
+  let mut conn_mgr = ConnMgr::new();
 
 // Register the client
 //  poll.registry().register(
@@ -85,7 +58,7 @@ pub fn hello<T>(
 //  let start = Instant::now();
 //  let timeout = Duration::from_millis(10);
 
-  'main: loop {
+  loop {
     poll.poll(&mut events, None)?; //todo
 
     for event in events.iter() {
@@ -95,39 +68,77 @@ pub fn hello<T>(
 
       match event.token() {
         SERVER_INCOMING_TOKEN => {
-          let (mut handler, addr) = server_acceptor.accept()?; //todo
-          println!("accept from addr: {}", &addr);
+          let (stream, addr) = server_acceptor.accept()?; //todo
+          if cfg!(debug_assertions) {
+            println!("Incoming stream from address [{:?}]!", addr);
+          }
+          let token = conn_mgr.generate_token(stream);
           poll.registry().register(
-            &mut handler, token_mgr.next_token(),
-            Interest::READABLE | Interest::WRITABLE)?; //todo
-          server = Some(handler);
+            conn_mgr.get_stream(&token.0).unwrap(), token,
+            Interest::READABLE)?; //todo
+//          Interest::READABLE | Interest::WRITABLE)?; //todo
+//          server = Some(stream);
         }
 
-        Token(token_id) => {
-          if event.is_writable() {
-            if let Some(ref mut handler) = &mut server {
-              match handler.write(b"SERVER_HELLO") {
-                Ok(_) => {
-                  println!("server wrote");
-                }
-                Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
-                err => {
-                  err?; //todo
+        mut token => {
+          let token_id = token.0;
+          if cfg!(debug_assertions) {
+            println!("Incoming stream with token id [{}]!", token_id);
+          }
+
+          match conn_mgr.get_stream(&token_id) {
+            None => panic!("Failed to get stream from token [{}]", token_id),
+
+            Some(stream) => {
+              if event.is_readable() {
+                let mut buf = Vec::new();
+                match stream.read_to_end(&mut buf) {
+                  Ok(0) => {
+                    if cfg!(debug_assertions) {
+                      println!("Dropping stream with token id [{}]!", token_id);
+                    }
+                    conn_mgr.release_token(&mut token, &poll)?;
+                    continue;
+                  }
+
+                  Ok(size) => {
+                    if cfg!(debug_assertions) {
+                      println!("{}", String::from_utf8_lossy(&buf));
+                      println!("```server received [{}] bytes!```", size);
+                    }
+                    poll.registry().reregister(
+                      stream, token,
+                      Interest::WRITABLE)?;
+                  }
+
+                  Err(err) => {
+                    if cfg!(debug_assertions) {
+                      println!("Readable event returned Error [{:?}]!", err);
+                    }
+                    if err.kind() != ErrorKind::WouldBlock {
+                      panic!("Readable event returned Error [{:?}]!", err);
+                    }
+                  }
                 }
               }
-            }
-          }
-          if event.is_readable() {
-            let mut hello = [0; 12];
-            if let Some(ref mut handler) = &mut server {
-              match handler.read_exact(&mut hello) {
-                Ok(_) => {
-                  assert_eq!(b"CLIENT_HELLO", &hello);
-                  println!("server received");
-                }
-                Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
-                err => {
-                  err?; //todo
+
+              if event.is_writable() {
+                match stream.write_all(b"HTTP/1.1 200 OK\r\nHello: Server\r\n\r\ndata here") {
+                  Ok(()) => {
+                    println!("server wrote succeed");
+                    poll.registry().reregister(
+                      stream, token,
+                      Interest::READABLE)?;
+                  }
+
+                  Err(err) => {
+                    if cfg!(debug_assertions) {
+                      println!("Writable event returned Error [{:?}]!", err);
+                    }
+                    if err.kind() != ErrorKind::WouldBlock {
+                      panic!("Writable event returned Error [{:?}]!", err);
+                    }
+                  }
                 }
               }
             }
@@ -160,18 +171,44 @@ pub fn hello<T>(
 //            }
 //          }
 //        }
-
-        _ => unreachable!(),
       }
     }
   };
-  Ok(())
+}
+
+pub fn hello_from_str<T>(
+  ip_addr: &str,
+  port: u16,
+  gmt_in_hr: i32,
+  callback: fn(TcpStream, u128) -> T,
+) -> Result<(), Error>
+  where T: Future + Send + 'static {
+  match ip_addr.parse() {
+    Ok(addr) => {
+      hello(addr, port, gmt_in_hr, callback)
+    }
+    Err(err) => {
+      panic!("Failed to parse IpAddr from [{}]! [{:?}]", ip_addr, err)
+    }
+  }
+}
+
+pub fn hello_from_arr<T, U>(
+  ip_addr: U,
+  port: u16,
+  gmt_in_hr: i32,
+  callback: fn(TcpStream, u128) -> T,
+) -> Result<(), Error>
+  where T: Future + Send + 'static,
+        U: Into<IpAddr> {
+  hello(ip_addr.into(), port, gmt_in_hr, callback)
 }
 
 
 
 
-/*use std::future::Future;
+/*
+use std::future::Future;
 
 use async_std::{println, task};
 use async_std::net::TcpListener;

@@ -1,64 +1,41 @@
-use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::hash::{BuildHasher, BuildHasherDefault, Hash, Hasher};
+use std::io::Error;
 
-use mio::{Poll, Token};
-use mio::net::TcpListener;
+use crate::{Poll, TcpStream, Token};
+use crate::no_hash_hasher::BuildNoHashUsizeHasher;
 
-type K = usize;
-type V<'a> = &'a mut TcpListener;
+type V = TcpStream;
 
-/// A Manager that maps `Token ID` to `TcpListener`.
-pub struct TokenMgr<'a>(HashMap<K, V<'a>, BuildNoHashUsizeHasher>);
+/// A Map that maps `primitive type` to `object`.
+pub(crate) struct ConnMgr(
+  HashMap<usize, V, BuildNoHashUsizeHasher>);
 
-impl TokenMgr<'_> {
+impl ConnMgr {
   pub fn new() -> Self {
-    let map = HashMap::with_hasher(
-      BuildNoHashUsizeHasher::default());
-    TokenMgr(map)
+    let map =
+      HashMap::with_hasher(BuildNoHashUsizeHasher::default());
+    ConnMgr(map)
   }
 
-  pub fn next_token(&self) -> Token {
-    for i in (1..=usize::max_value() - 1).step_by(2) {
+  pub fn generate_token(&mut self, value: V) -> Token {
+    for i in 1..=usize::max_value() {
       if !self.0.contains_key(&i) {
+        self.0.insert(i, value);
         return Token(i);
       }
     }
     panic!("No more available tokens!")
   }
 
-  pub fn release_token(&mut self, token: &mut Token, poll: &Poll) {
+  pub fn get_stream(&mut self, token_id: &usize) -> Option<&mut V> {
+    self.0.get_mut(token_id)
+  }
+
+  pub fn release_token(&mut self, token: &mut Token, poll: &Poll) -> Result<(), Error> {
     match self.0.remove(&token.0) {
-      Some(listener) => { poll.registry().deregister(listener); }
-      _ => { panic!("Token [{}] already removed from map unexpectedly!", token.0); }
-    };
-  }
-}
+      Some(mut listener) => poll.registry().deregister(&mut listener),
 
-struct NoHashUsizeHasher(u64);
-
-impl Hasher for NoHashUsizeHasher {
-  fn finish(&self) -> u64 {
-    self.0
-  }
-
-  fn write(&mut self, bytes: &[u8]) {
-    unreachable!("Incorrect use of NoHash-Hasher!")
-  }
-
-  fn write_usize(&mut self, i: usize) {
-    match u64::try_from(i) {
-      Ok(value) => self.0 = value,
-      Err(e) => panic!("Failed to parse [{}] from usize to u64! [{}]", i, e)
+      _ => panic!("Token [{}] already removed from map unexpectedly!", token.0)
     }
   }
 }
-
-impl Default for NoHashUsizeHasher {
-  fn default() -> Self {
-    NoHashUsizeHasher(1)
-  }
-}
-
-type BuildNoHashUsizeHasher = BuildHasherDefault<NoHashUsizeHasher>;
