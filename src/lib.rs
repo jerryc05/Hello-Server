@@ -1,6 +1,6 @@
 use std::future::Future;
 use std::io::{Error, ErrorKind, Read, Write};
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, SocketAddr, Shutdown};
 
 use mio::{Events, Interest};
 pub use mio::{Poll, Token};
@@ -49,6 +49,10 @@ pub fn hello<T>(
     poll.poll(&mut events, None)?;
 
     for event in events.iter() {
+      if cfg!(debug_assertions) {
+        println!("New Event [{:?}]!", event);
+      }
+
       match event.token() {
         SERVER_INCOMING_TOKEN =>
           if !handle_server_incoming(&mut server_acceptor,
@@ -110,6 +114,9 @@ fn handle_server_incoming(
     conn_mgr.get_stream(&token.0).unwrap(), token,
     Interest::READABLE)?;
 //          Interest::READABLE | Interest::WRITABLE)?;
+  poll.registry().reregister(
+    server_acceptor, SERVER_INCOMING_TOKEN,
+    Interest::READABLE)?;
   Ok(true)
 }
 
@@ -160,7 +167,7 @@ fn handle_stream_read(
 
     Ok(size) => {
       if cfg!(debug_assertions) {
-        println!("```server received [{}] bytes!```", size);
+        println!("`````````server received [{}] bytes!`````````", size);
       }
     }
 
@@ -169,9 +176,9 @@ fn handle_stream_read(
         panic!("Readable event returned Error [{:?}]!", err);
       }
       if cfg!(debug_assertions) {
-        println!("``` Read buffer Starts Here ```");
+        println!("````````` Read buffer Starts Here `````````");
         println!("{}", String::from_utf8_lossy(&buf));
-        println!("``` Read buffer Ends Here ```");
+        println!("````````` Read buffer Ends Here `````````");
       }
       poll.registry().reregister(
         stream, token,
@@ -190,9 +197,10 @@ fn handle_stream_write(
   let token_id = token.0;
   let stream = conn_mgr.get_stream(&token_id).unwrap();
 
-  match stream.write_all(b"HTTP/1.1 200 OK\r\nHello: Server\r\n\r\ndata here") {
+  match stream.write_all("HTTP/1.1 200 OK\r\nHello: Server\r\n\r\ndata here".as_bytes()) {
     Ok(()) => {
-      println!("server wrote succeed");
+      println!("server wrote succeed!");
+      stream.shutdown(Shutdown::Write)?;
       poll.registry().reregister(
         stream, token,
         Interest::READABLE)?;
