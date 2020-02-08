@@ -1,20 +1,22 @@
 //use std::convert::TryFrom;
 
+use std::io::Error;
+use std::net::Ipv4Addr;
+
 //use hello_server::http::request::*;
 //use async_std::io::*;
 //use async_std::io::prelude::*;
 //use async_std::println;
 //use hello_server::http::util::*;
 use hello_server::TcpStream;
-use std::io::Error;
 
 /// Default listening ip
-const DEFAULT_IP_ADDRESS_1: &str = "127.0.0.1";
+//const DEFAULT_IP_ADDRESS_1: &str = "127.0.0.1";
 //const DEFAULT_IP_ADDRESS_2: &str = "::1";
 const PORT: u16 = 6006;
 
-fn main() ->Result<(),Error>{
-  hello_server::hello_from_str(DEFAULT_IP_ADDRESS_1, PORT,
+fn main() -> Result<(), Error> {
+  hello_server::hello_from_into_addr(Ipv4Addr::LOCALHOST, PORT,
                                -5, process)
 }
 

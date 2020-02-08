@@ -33,9 +33,10 @@ impl ConnMgr {
 
   pub fn release_token(&mut self, token: &mut Token, poll: &Poll) -> Result<(), Error> {
     match self.0.remove(&token.0) {
-      Some(mut listener) => poll.registry().deregister(&mut listener),
-
-      _ => panic!("Token [{}] already removed from map unexpectedly!", token.0)
+      Some(mut listener) =>
+        poll.registry().deregister(&mut listener),
+      _ =>
+        panic!("Token [{}] already removed from map unexpectedly!", token.0)
     }
   }
 }
