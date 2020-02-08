@@ -11,7 +11,7 @@ const PORT: u16 = 6006;
 
 fn main() {
   hello_server::hello_from_into_addr(Ipv4Addr::LOCALHOST, PORT,
-                                     -5, process).unwrap()
+                                     -5, process).unwrap();
 }
 
 async fn process(_tcp_stream: TcpStream, _tcp_num: u128) {
