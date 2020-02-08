@@ -7,5 +7,5 @@ A simple async HTTP/1.1 server implementation powered by [mio crate](https://cra
 ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/jerryc05/Hello-Server.svg)
 ![GitHub License](https://img.shields.io/github/license/jerryc05/Hello-Server.svg)
 
-# Example
+## Example
 See examples folder.
